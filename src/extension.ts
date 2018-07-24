@@ -3,25 +3,31 @@
 import * as vscode from 'vscode';
 import * as utils from './utils';
 
+let TAB_SIZE = 4;
+
 let enabled = false;
 let context = 0;
 let opacity = 50;
 let delay = 200;
 let commandScope = true;
+let HLRange: vscode.Range[] = [];
 
 let dimDecoration: vscode.TextEditorDecorationType;
 let normalDecoration = vscode.window.createTextEditorDecorationType(<vscode.DecorationRenderOptions> {
     textDecoration: 'none; opacity: 1'
 });
 
+let lineTable = new Map(); // Line dict
 
 let delayers: { [key: string]: utils.ThrottledDelayer<void> } = Object.create(null);
 
 export function activate(context: vscode.ExtensionContext) {
-    let configRegistration = vscode.workspace.onDidChangeConfiguration(initialize);
-    let selectionRegistration = vscode.window.onDidChangeTextEditorSelection((e) => updateIfEnabled(e.textEditor));
-    let textEditorChangeRegistration = vscode.window.onDidChangeActiveTextEditor((textEditor) => updateIfEnabled(textEditor));
-    let commandRegistration = vscode.commands.registerCommand('dimmer.ToggleDimmer', () => {
+    console.log('activating the dimmer extension')
+    let configRegistration           = vscode.workspace.onDidChangeConfiguration(initialize);
+    let selectionRegistration        = vscode.window.onDidChangeTextEditorSelection((e) => updateIfEnabled(e.textEditor));
+    let textEditorChangeRegistration = vscode.window.onDidChangeActiveTextEditor(updateIfEnabled);
+    let commandRegistration          = vscode.commands.registerCommand('dimmer.ToggleDimmer', () => {
+        console.log('toggling activation to', !enabled);
         vscode.workspace.getConfiguration('dimmer').update("enabled", !enabled, commandScope);
     });
 
@@ -31,6 +37,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function updateIfEnabled(textEditor: vscode.TextEditor) {
+    console.log('updated if enabled=', enabled)
     if (enabled) {
         setDecorations(textEditor);
     }
@@ -62,8 +69,8 @@ function resetAllDecorations() {
 }
 
 function resetDecorations(textEditor: vscode.TextEditor) {
-        highlightSelections(textEditor, []);
-        undimEditor(textEditor);
+    highlightSelections(textEditor, []);
+    undimEditor(textEditor);
 }
 
 function setAllDecorations() {
@@ -79,6 +86,7 @@ function setDecorations(textEditor: vscode.TextEditor) {
     }
     delayer.trigger(() => {
         return Promise.resolve().then(() => {
+            console.log('setting decorations after delay')
             dimEditor(textEditor);
             highlightSelections(textEditor, textEditor.selections);
         });
@@ -109,22 +117,153 @@ function createDimDecorator() {
     }
     dimDecoration = vscode.window.createTextEditorDecorationType(<vscode.DecorationRenderOptions> {
         textDecoration: `none; opacity: ${opacity / 100}`
-    });    
+    });
 }
 
 function undimEditor(editor: vscode.TextEditor) {
     if (!dimDecoration) return;
-    
+
     editor.setDecorations(dimDecoration, []);
 }
 
 function dimEditor(editor: vscode.TextEditor) {
+    console.log('Dimming now!')
     if (!dimDecoration) return;
 
+    // TODO: change this to detect scope as other extension does
     let startPosition = new vscode.Position(0, 0)
     let endPosition = new vscode.Position(editor.document.lineCount, Number.MAX_VALUE);
-    editor.setDecorations(dimDecoration, [new vscode.Range(startPosition, endPosition)]);
+
+
+    if(editor.selection.isSingleLine){
+        let topLine = findTop(editor);
+        let botLine = findBot(editor, topLine);
+        // let HLRange : vscode.Range;
+
+        console.log('topLine:', topLine);
+        console.log('botLine:', botLine);
+
+        // If top level statement that doesn't start a block the entire file is in it's context
+        // if(editor.document.lineAt(editor.selection.active).firstNonWhitespaceCharacterIndex === 0
+        if(getIndentLevel(editor, editor.document.lineAt(editor.selection.active)) === 0
+            && !editor.document.lineAt(editor.selection.active).isEmptyOrWhitespace){
+            // Do nothing for now
+            // this.unhighlightAll(editor);
+            console.log('doing nothing')
+        }else{
+            // HLRange = new vscode.Range(topLine.lineNumber,0 ,
+                // botLine.lineNumber, Number.MAX_VALUE);
+
+            console.log('else clause')
+            HLRange[0] = new vscode.Range(0, 0,
+                topLine.lineNumber - 1, Number.MAX_VALUE);
+            console.log('first range')
+            HLRange[1] = new vscode.Range(botLine.lineNumber + 1, 0,
+                editor.document.lineCount, Number.MAX_VALUE);
+
+            console.log('HLRange:', HLRange)
+            // this.highlightRange(editor, HLRange);
+        }
+    }
+
+    // HLRange = new vscode.Range(startPosition, endPosition)
+
+    console.log('setting range to:', HLRange)
+    // editor.setDecorations(dimDecoration, [new vscode.Range(startPosition, endPosition)]);
+    editor.setDecorations(dimDecoration, HLRange);
 }
+
+function findTop(editor :vscode.TextEditor){
+    let line : vscode.TextLine = editor.document.lineAt(editor.selection.active);
+    //If whitespace selected process closest nonwhitespace above it
+    while(line.isEmptyOrWhitespace && line.lineNumber > 0){
+        line = editor.document.lineAt(line.lineNumber - 1);
+    }
+    if(line.lineNumber < editor.document.lineCount - 1 && !line.isEmptyOrWhitespace){
+        let nextLine = editor.document.lineAt(line.lineNumber + 1);
+        // Find first nonwhitespace line
+        while(nextLine.isEmptyOrWhitespace && nextLine.lineNumber < editor.document.lineCount - 1){
+            nextLine = editor.document.lineAt(nextLine.lineNumber + 1);
+        }
+    }
+    let indentLevel = NaN;
+    while(line.lineNumber > 0){
+        if(!line.isEmptyOrWhitespace){
+            let nextLevel = getIndentLevel(editor,line);
+            if(Number.isNaN(indentLevel)){
+                indentLevel = nextLevel;
+            }
+            if(nextLevel === 0){
+                return line;
+            }
+            if(nextLevel < indentLevel){
+                return line;
+            }
+        }
+        line = editor.document.lineAt(line.lineNumber - 1);
+    }
+    return line;
+}
+
+function findBot(editor : vscode.TextEditor, topLine : vscode.TextLine){
+    let line : vscode.TextLine = editor.document.lineAt(topLine.lineNumber + 1);
+    let baseLevel = getIndentLevel(editor, editor.document.lineAt(editor.selection.active));
+    while(line.lineNumber < editor.document.lineCount - 1){
+        if(!line.isEmptyOrWhitespace){
+            let nextLevel = getIndentLevel(editor, line);
+            if(nextLevel < baseLevel || nextLevel === 0){
+            //if(nextLevel <= this.getIndentLevel(editor, topLine)){
+                return line;
+            }
+        }
+        line = editor.document.lineAt(line.lineNumber + 1);
+    }
+    console.log("EOF Reached");
+    return line;
+}
+
+/**
+* Parses a line to get the indentation level manually
+* Assumes line is already non-whitespace
+* @param line Line to parse
+* @returns Number of space-equivalents in the line
+**/
+function getIndentLevel(editor: vscode.TextEditor, line : vscode.TextLine){
+   // Deleet Cache block?
+   //if(lineTable.has(line)){
+   //   return lineTable.get(line);
+   // }else{
+   let indentLevel = line.firstNonWhitespaceCharacterIndex;
+   let lineText = line.text;
+   for(var i = 0; i < indentLevel; i++){
+       if(lineText.charAt(i) === '\t'){
+           indentLevel+= (TAB_SIZE - 1);
+       }
+   }
+   lineTable.set(line, indentLevel);
+   return indentLevel;
+
+   // Cache block end
+   // }
+}
+
+function changeActive(){
+    console.log("Active Window Changed");
+    setCurrentDocumentTabSize();
+}
+
+function setCurrentDocumentTabSize(){
+    let editor = vscode.window.activeTextEditor;
+    if(!editor){
+        return;
+    }
+    let tabs : number;
+    tabs = editor.options.tabSize as number;
+    TAB_SIZE = tabs;
+    console.log("Tab size of current document: " + TAB_SIZE);
+}
+
+
 
 export function deactivate() {
     resetAllDecorations();
