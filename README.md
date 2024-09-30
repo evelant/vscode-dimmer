@@ -18,7 +18,7 @@ Original code by hoovercj, block capability by jmasramon, brackets dimming by da
     "description": "When set to true, the extension will dim non-selected text."
 },
 "dimmer.toggleDimmerCommandScope": {
-    "defualt": "user",
+    "default": "user",
     "description": "Decides whether the `ToggleDimmer` command will affect the user (global) or workspace (local) settings."
 },
 "dimmer.opacity": {
