@@ -2,7 +2,6 @@
 
 import * as vscode from 'vscode';
 import * as utils from './utils';
-import { log } from 'console';
 
 let TAB_SIZE = 4;
 
