@@ -308,7 +308,7 @@ function findSurroundingBrackets(editor: vscode.TextEditor, index: number): vsco
     // Search backwards to find the first opening bracket within the topOffset limit
     for (let i = index; i >= 0; i--) {
         let char = text.charAt(i);
-        if (openingBrackets[char]) {
+        if (openingBrackets[char] && i < index) {
             openingCount[char]++;
             if (openingCount[char] === 1) {
                 openingBracket = char;
