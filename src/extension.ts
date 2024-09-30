@@ -2,6 +2,7 @@
 
 import * as vscode from 'vscode';
 import * as utils from './utils';
+import { log } from 'console';
 
 let TAB_SIZE = 4;
 
@@ -20,6 +21,7 @@ let normalDecoration = vscode.window.createTextEditorDecorationType(<vscode.Deco
 let lineTable = new Map(); // Line dict
 
 let delayers: { [key: string]: utils.ThrottledDelayer<void> } = Object.create(null);
+let dimmingReason = 'indent'
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('activating the dimmer extension')
@@ -60,6 +62,7 @@ function readConfig() {
     context = config.get('context', 0);
     delay = config.get('delay', 200);
     delay = delay < 0 ? 0 : delay;
+    dimmingReason = config.get('dimmingReason', 'indent');
 }
 
 function resetAllDecorations() {
@@ -88,7 +91,9 @@ function setDecorations(textEditor: vscode.TextEditor) {
         return Promise.resolve().then(() => {
             console.log('setting decorations after delay')
             dimEditor(textEditor);
-            highlightSelections(textEditor, textEditor.selections);
+            if (dimmingReason === 'indent') {
+                highlightSelections(textEditor, textEditor.selections);
+            }
         });
     }, delay);
 }
@@ -146,7 +151,7 @@ function dimEditor(editor: vscode.TextEditor) {
         // If top level statement that doesn't start a block the entire file is in it's context
         // if(editor.document.lineAt(editor.selection.active).firstNonWhitespaceCharacterIndex === 0
         if(getIndentLevel(editor, editor.document.lineAt(editor.selection.active)) === 0
-            && !editor.document.lineAt(editor.selection.active).isEmptyOrWhitespace){
+            && !editor.document.lineAt(editor.selection.active).isEmptyOrWhitespace && dimmingReason === 'indent'){
             // Do nothing for now
             // this.unhighlightAll(editor);
             console.log('doing nothing')
@@ -155,14 +160,34 @@ function dimEditor(editor: vscode.TextEditor) {
                 // botLine.lineNumber, Number.MAX_VALUE);
 
             console.log('else clause')
-            HLRange[0] = new vscode.Range(0, 0,
-                topLine.lineNumber - 1, Number.MAX_VALUE);
-            console.log('first range')
-            HLRange[1] = new vscode.Range(botLine.lineNumber + 1, 0,
-                editor.document.lineCount, Number.MAX_VALUE);
 
+            let needDimIndent = true;
+            if (dimmingReason !== 'indent') {
+                // Bracket-based dimming within the HLRange
+                console.log('looking for brackets') 
+                let selectionIndex = editor.document.offsetAt(editor.selection.active);
+                let bracketRange = findSurroundingBrackets(editor, selectionIndex);
+                if (bracketRange) {
+                    needDimIndent = false
+                    console.log('bracket range:', '(', bracketRange.start.line, bracketRange.start.character, '):(', bracketRange.end.line, bracketRange.end.character, ')');
+                    HLRange[0] = new vscode.Range(0, 0, bracketRange.start.line, bracketRange.start.character);
+                    HLRange[1] = new vscode.Range(bracketRange.end.line, bracketRange.end.character,
+                        editor.document.lineCount, Number.MAX_VALUE);
+                } else if (dimmingReason === 'brackets') {
+                    needDimIndent = false
+                    HLRange = []
+                    undimEditor(editor);
+                }
+           }
+
+           if (needDimIndent) {
+                HLRange[0] = new vscode.Range(0, 0,
+                    topLine.lineNumber - 1, Number.MAX_VALUE);
+                console.log('first range')
+                HLRange[1] = new vscode.Range(botLine.lineNumber + 1, 0,
+                    editor.document.lineCount, Number.MAX_VALUE);
+            }
             console.log('HLRange:', HLRange)
-            // this.highlightRange(editor, HLRange);
         }
     }
 
@@ -263,7 +288,66 @@ function setCurrentDocumentTabSize(){
     console.log("Tab size of current document: " + TAB_SIZE);
 }
 
+/**
+ * Finds the surrounding brackets and returns the range that encompasses them within the HLRange scope.
+ * @param editor The text editor.
+ * @param index The current selection index.
+ * @param topOffset The top boundary for the search.
+ * @param bottomOffset The bottom boundary for the search.
+ * @returns A range that encompasses the brackets or null if no matching brackets are found.
+ */
+function findSurroundingBrackets(editor: vscode.TextEditor, index: number): vscode.Range | null {
+    const text = editor.document.getText();
+    
+    let openingIndex = -1;
+    let closingIndex = -1;
+    const openingBrackets = {'(': ')', '{': '}', '[': ']', '<': '>'}
+    const closingBrackets = {')': '(', '}': '{', ']': '[', '>': '<'}
+    let openingCount = {'(': 0, '{': 0, '[': 0, '<': 0}
+    let openingBracket = null;
 
+    console.log('Starting bracket search:', index, text.charAt(index));
+    // Search backwards to find the first opening bracket within the topOffset limit
+    for (let i = index; i >= 0; i--) {
+        let char = text.charAt(i);
+        if (openingBrackets[char]) {
+            openingCount[char]++;
+            if (openingCount[char] === 1) {
+                openingBracket = char;
+                openingIndex = i;
+                break;
+            }
+        } else if (closingBrackets[char] && i < index) {
+            openingCount[closingBrackets[char]]--;
+        }
+    }
+
+    if (openingBracket === null) {
+        return null; // No opening bracket found
+    }
+
+    // Search forwards to find the first closing bracket within the bottomOffset limit
+    for (let i = index; i < text.length; i++) {
+        let char = text.charAt(i);
+        if (char === openingBracket) {
+            openingCount[char]++;
+        } else if (char === openingBrackets[openingBracket]) {
+            openingCount[openingBracket]--;
+            if (openingCount[openingBracket] === 0) {
+                closingIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (openingCount[openingBracket] !== 0) {
+        return null; // No closing bracket found
+    }
+
+    let startPosition = editor.document.positionAt(openingIndex);
+    let endPosition = editor.document.positionAt(closingIndex + 1); // +1 to include the closing bracket
+    return new vscode.Range(startPosition, endPosition);
+}
 
 export function deactivate() {
     resetAllDecorations();
