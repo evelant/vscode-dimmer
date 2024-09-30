@@ -167,8 +167,7 @@ function dimEditor(editor: vscode.TextEditor) {
                 let selectionIndex = editor.document.offsetAt(editor.selection.active);
                 let bracketRange = findSurroundingBrackets(editor, selectionIndex);
                 if (bracketRange) {
-                    needDimIndent = false
-                    console.log('bracket range:', '(', bracketRange.start.line, bracketRange.start.character, '):(', bracketRange.end.line, bracketRange.end.character, ')');
+                    needDimIndent = false;
                     HLRange[0] = new vscode.Range(0, 0, bracketRange.start.line, bracketRange.start.character);
                     HLRange[1] = new vscode.Range(bracketRange.end.line, bracketRange.end.character,
                         editor.document.lineCount, Number.MAX_VALUE);
