@@ -20,7 +20,7 @@ let normalDecoration = vscode.window.createTextEditorDecorationType(<vscode.Deco
 let lineTable = new Map(); // Line dict
 
 let delayers: { [key: string]: utils.ThrottledDelayer<void> } = Object.create(null);
-let dimmingReason = 'indent'
+let dimmingReason = 'indentAndBrackets'
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('activating the dimmer extension')
@@ -61,7 +61,7 @@ function readConfig() {
     context = config.get('context', 0);
     delay = config.get('delay', 200);
     delay = delay < 0 ? 0 : delay;
-    dimmingReason = config.get('dimmingReason', 'indent');
+    dimmingReason = config.get('dimmingReason', 'indentAndBrackets');
 }
 
 function resetAllDecorations() {
