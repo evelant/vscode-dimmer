@@ -59,6 +59,16 @@
           "default": 0,
           "type": "number",
           "description": "Delay in milliseconds for dimming the non-selected text to reduce number of API calls in the event of rapid selection changes. Defaults to 0, but set higher if it feels like it is causing problems."
+        },
+        "dimmer.dimmingReason": {
+          "default": "indent",
+          "type": "string",
+          "enum": [
+            "indentAndBrackets",
+            "indent",
+            "brackets"
+          ],
+          "description": "Decides what will trigger the dimming of non-selected text."
         }
       }
     }
