@@ -2,7 +2,7 @@
   "name": "code-dimmer",
   "displayName": "Code Dimmer",
   "description": "Highlights the block containing the cursor, dims other text. Forked from VSCode Dimmer Block",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "publisher": "dankinsoid",
   "engines": {
     "vscode": "^1.93.0"
@@ -75,17 +75,17 @@
     }
   },
   "scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -watch -p ./"
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "lint": "eslint \"src/**/*.ts\"",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
     "@types/node": "^18",
     "@types/vscode": "^1.93.0",
     "typescript": "^5.5.2",
-		"@typescript-eslint/eslint-plugin": "^7.14.0",
-		"@typescript-eslint/parser": "^7.14.0",
-		"eslint": "^8.26.0"
+    "@typescript-eslint/eslint-plugin": "^7.14.0",
+    "@typescript-eslint/parser": "^7.14.0",
+    "eslint": "^8.26.0"
   }
 }
