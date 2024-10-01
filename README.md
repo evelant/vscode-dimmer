@@ -1,4 +1,4 @@
-# vscode-dimmer-block
+# code-dimmer
 
 ## Features
 
