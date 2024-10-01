@@ -33,7 +33,8 @@ Original code by hoovercj, block capability by jmasramon, brackets dimming by da
 ```
 
 ### 2.3.0
-- Forked from [evelant/vscode-dimmer](https://github.com/evelant/vscode-dimmer) since the original repo is no longer maintained
+
+- Forked from [evelant/vscode-dimmer](https://github.com/evelant/vscode-dimmer) since the original repo is no longer maintained.
 - Added support for dimming text inside brackets.
 - Added `dimmer.dimmingReason` setting to allow for different dimming reasons.
 
