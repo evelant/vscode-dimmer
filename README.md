@@ -12,7 +12,7 @@ Original code by hoovercj, block capability by jmasramon, brackets dimming by da
 
 ## Configuration
 
-```
+```json
 "dimmer.enabled": {
     "default": false,
     "description": "When set to true, the extension will dim non-selected text."
