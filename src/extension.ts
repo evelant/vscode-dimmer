@@ -6,7 +6,6 @@ import * as utils from './utils'
 let TAB_SIZE = 4
 
 let enabled = false
-let contextIndex = 0
 let opacity = 50
 let delay = 200
 let commandScope = true
@@ -100,7 +99,6 @@ function readConfig() {
         ? config.inspect("enabled")?.globalValue === true
         : config.get('enabled', false)
     opacity = config.get('opacity', 50)
-    contextIndex = config.get('context', 0)
     delay = config.get('delay', 200)
     delay = delay < 0 ? 0 : delay
     dimmingReason = config.get('dimmingReason', 'indentAndBrackets')
@@ -290,8 +288,6 @@ function setCurrentDocumentTabSize() {
 function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
-
-    
 
     fixedRange = highlighted
     lastRange = highlighted
