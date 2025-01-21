@@ -158,29 +158,36 @@ function undimEditor(editor: vscode.TextEditor) {
     editor.setDecorations(dimDecoration, [])
 }
 
+function isItRoot(editor: vscode.TextEditor) {
+    return (getIndentLevel(editor, editor.document.lineAt(editor.selection.active)) === 0
+    && !editor.document.lineAt(editor.selection.active).isEmptyOrWhitespace && dimmingReason !== 'brackets')
+}
+
 function dimEditor(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     if (!dimDecoration || !editor.selection.isSingleLine) return;
 
     // If top level statement that doesn't start a block the entire file is in it's context
-    if (getIndentLevel(editor, editor.document.lineAt(editor.selection.active)) === 0
-        && !editor.document.lineAt(editor.selection.active).isEmptyOrWhitespace && dimmingReason !== 'brackets') {
-        // Do nothing for now
-    } else {
-        let topLine = findTop(editor)
-        let botLine = findBot(editor, topLine)
-        lastRange = new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
-        if (dimmingReason !== 'indent') {
-            // Bracket-based dimming within the HLRange
-            let selectionIndex = editor.document.offsetAt(editor.selection.active)
-            let bracketRange = findSurroundingBrackets(editor, selectionIndex)
-            if (bracketRange) {
-                lastRange = bracketRange
-            } else if (dimmingReason === 'brackets') {
-                lastRange = null
-            }
-        }
+    if (!isItRoot(editor)) {
+        lastRange = computeRange(editor)
     }
     decorateForLastRange(editor, context)
+}
+
+function computeRange(editor: vscode.TextEditor) {
+    let topLine = findTop(editor, editor.document.lineAt(editor.selection.active))
+    let botLine = findBot(editor, topLine, editor.selection.active)
+    if (dimmingReason !== 'indent') {
+        // Bracket-based dimming within the HLRange
+        let selectionIndex = editor.document.offsetAt(editor.selection.active)
+        let bracketRange = findSurroundingBrackets(editor, selectionIndex)
+        if (bracketRange) {
+            return bracketRange
+        } else if (dimmingReason === 'brackets') {
+            return null
+        }
+    } else {
+        return new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
+    }
 }
 
 function decorateForLastRange(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
@@ -208,8 +215,7 @@ function decorateForLastRange(editor: vscode.TextEditor, context: vscode.Extensi
     }
 }
 
-function findTop(editor: vscode.TextEditor) {
-    let line: vscode.TextLine = editor.document.lineAt(editor.selection.active)
+function findTop(editor: vscode.TextEditor, line: vscode.TextLine) {
     //If whitespace selected process closest nonwhitespace above it
     while (line.isEmptyOrWhitespace && line.lineNumber > 0) {
         line = editor.document.lineAt(line.lineNumber - 1)
@@ -240,9 +246,9 @@ function findTop(editor: vscode.TextEditor) {
     return line
 }
 
-function findBot(editor: vscode.TextEditor, topLine: vscode.TextLine) {
+function findBot(editor: vscode.TextEditor, topLine: vscode.TextLine, position: vscode.Position) {
     let line: vscode.TextLine = editor.document.lineAt(Math.min(editor.document.lineCount - 1, topLine.lineNumber + 1))
-    let baseLevel = getIndentLevel(editor, editor.document.lineAt(editor.selection.active))
+    let baseLevel = getIndentLevel(editor, editor.document.lineAt(position))
     while (line.lineNumber < editor.document.lineCount - 1) {
         if (!line.isEmptyOrWhitespace) {
             let nextLevel = getIndentLevel(editor, line)
@@ -315,7 +321,7 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
             if (!line.isEmptyOrWhitespace) {
                 const indent = getIndentLevel(editor, line)
                 if (indent < currentIndent) {
-                    const botLine = findBot(editor, line)
+                    const botLine = findBot(editor, line, editor.selection.active)
                     const newRange = new vscode.Range(line.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
                     if (!highlighted.isEqual(newRange)) {
                         lastRange = newRange
@@ -326,6 +332,15 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
             }
         }
     }
+
+    decorateForLastRange(editor, context)
+}
+
+function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
+    let highlighted = fixedRange ?? lastRange
+    if (!highlighted) { return }
+
+    
 
     decorateForLastRange(editor, context)
 }
@@ -410,66 +425,4 @@ function updateStatusBarIcon() {
 
 export function deactivate(context: vscode.ExtensionContext) {
     resetAllDecorations(context)
-}
-
-function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
-    let highlighted = fixedRange ?? lastRange
-    if (!highlighted) { return }
-
-    const cursorPos = editor.selection.active
-    
-    // Find the closest containing range around cursor
-    let closestRange: vscode.Range | null = null
-    let closestSize = Number.MAX_VALUE
-
-    if (dimmingReason !== 'indent') {
-        // Try to find closest bracket pair around cursor
-        const cursorOffset = editor.document.offsetAt(cursorPos)
-        const bracketRange = findSurroundingBrackets(editor, cursorOffset)
-        
-        if (bracketRange && highlighted.contains(bracketRange) && !bracketRange.isEqual(highlighted)) {
-            const rangeSize = editor.document.offsetAt(bracketRange.end) - editor.document.offsetAt(bracketRange.start)
-            if (rangeSize < closestSize) {
-                closestRange = bracketRange
-                closestSize = rangeSize
-            }
-        }
-    }
-    
-    if (dimmingReason !== 'brackets') {
-        // Try to find closest indent-based range
-        const line = editor.document.lineAt(cursorPos.line)
-        if (!line.isEmptyOrWhitespace) {
-            const topLine = findTop(editor)
-            const botLine = findBot(editor, topLine)
-            const indentRange = new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
-            
-            if (highlighted.contains(indentRange) && !indentRange.isEqual(highlighted)) {
-                const rangeSize = editor.document.offsetAt(indentRange.end) - editor.document.offsetAt(indentRange.start)
-                if (rangeSize < closestSize) {
-                    closestRange = indentRange
-                    closestSize = rangeSize
-                }
-            }
-        }
-    }
-
-    if (closestRange) {
-        lastRange = closestRange
-        fixedRange = closestRange
-    } else {
-        // If no inner range found, shrink to current line
-        const newRange = new vscode.Range(
-            cursorPos.line,
-            0,
-            cursorPos.line,
-            editor.document.lineAt(cursorPos.line).text.length
-        )
-        if (!highlighted.isEqual(newRange)) {
-            lastRange = newRange
-            fixedRange = newRange
-        }
-    }
-
-    decorateForLastRange(editor, context)
 }
