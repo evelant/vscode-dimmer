@@ -37,6 +37,31 @@
       {
         "command": "dimmer.FixDimmer",
         "title": "Fix/Unfix Dimming"
+      },
+      {
+        "command": "dimmer.ExpandDimmer",
+        "title": "Expand Dimming Selection"
+      },
+      {
+        "command": "dimmer.SrinkDimmer",
+        "title": "Shrink Dimming Selection"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "dimmer.FixDimmer",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f"
+      },
+      {
+        "command": "dimmer.ExpandDimmer",
+        "key": "ctrl+shift+]",
+        "mac": "cmd+shift+]"
+      },
+      {
+        "command": "dimmer.SrinkDimmer",
+        "key": "ctrl+shift+[", 
+        "mac": "cmd+shift+["
       }
     ],
     "configuration": {
