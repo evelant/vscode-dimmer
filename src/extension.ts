@@ -56,6 +56,14 @@ export function activate(context: vscode.ExtensionContext) {
         }
     })
 
+    let clearCommandRegistration = vscode.commands.registerCommand('dimmer.ClearDimming', () => {
+        if (vscode.window.activeTextEditor) {
+            lastRange = null
+            fixedRange = null
+            resetDecorations(vscode.window.activeTextEditor, context)
+        }
+    })
+
     initialize(context)
 
     configureStatusBar(context)
@@ -66,7 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
         fixCommandRegistration,
         textEditorChangeRegistration,
         expandCommandRegistration,
-        shrinkCommandRegistration
+        shrinkCommandRegistration,
+        clearCommandRegistration
     )
 
     vscode.commands.executeCommand('dimmer.FixDimmer').then(() => {

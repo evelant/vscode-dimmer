@@ -45,6 +45,10 @@
       {
         "command": "dimmer.SrinkDimmer",
         "title": "Shrink Dimming Selection"
+      },
+      {
+        "command": "dimmer.ClearDimming",
+        "title": "Clear Dimming"
       }
     ],
     "keybindings": [
@@ -62,6 +66,10 @@
         "command": "dimmer.SrinkDimmer",
         "key": "ctrl+shift+[", 
         "mac": "cmd+shift+["
+      },
+      {
+        "command": "dimmer.ClearDimming",
+        "key": "escape"
       }
     ],
     "configuration": {
