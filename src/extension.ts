@@ -49,10 +49,14 @@ export function activate(context: vscode.ExtensionContext) {
         }
     })
     let expandCommandRegistration = vscode.commands.registerCommand('dimmer.ExpandDimmer', () => {
-        
+        if (vscode.window.activeTextEditor) {
+            expandSelection(vscode.window.activeTextEditor, context)
+        }
     })
     let shrinkCommandRegistration = vscode.commands.registerCommand('dimmer.SrinkDimmer', () => {
-        
+        if (vscode.window.activeTextEditor) {
+            shrinkSelection(vscode.window.activeTextEditor, context)
+        }
     })
 
     initialize(context)
@@ -289,8 +293,42 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    fixedRange = highlighted
-    lastRange = highlighted
+    if (dimmingReason === 'brackets' || dimmingReason === 'indentAndBrackets') {
+        // Try bracket expansion first
+        const currentPos = editor.document.offsetAt(highlighted.start)
+        const expandedRange = findSurroundingBrackets(editor, currentPos)
+        
+        if (expandedRange && !expandedRange.isEqual(highlighted)) {
+            lastRange = expandedRange
+            fixedRange = expandedRange
+            decorateForLastRange(editor, context)
+            return
+        }
+    }
+    
+    if (dimmingReason === 'indent' || dimmingReason === 'indentAndBrackets') {
+        // If brackets didn't work or we're in indent mode, try indent expansion
+        const currentIndent = getIndentLevel(editor, editor.document.lineAt(highlighted.start.line))
+        let line = editor.document.lineAt(highlighted.start.line)
+        
+        // Search upward for lower indent level
+        while (line.lineNumber > 0) {
+            line = editor.document.lineAt(line.lineNumber - 1)
+            if (!line.isEmptyOrWhitespace) {
+                const indent = getIndentLevel(editor, line)
+                if (indent < currentIndent) {
+                    const botLine = findBot(editor, line)
+                    const newRange = new vscode.Range(line.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
+                    if (!highlighted.isEqual(newRange)) {
+                        lastRange = newRange
+                        fixedRange = newRange
+                        break
+                    }
+                }
+            }
+        }
+    }
+
     decorateForLastRange(editor, context)
 }
 
@@ -374,4 +412,72 @@ function updateStatusBarIcon() {
 
 export function deactivate(context: vscode.ExtensionContext) {
     resetAllDecorations(context)
+}
+function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
+    let highlighted = fixedRange ?? lastRange
+    if (!highlighted) { return }
+
+    if (dimmingReason === 'brackets' || dimmingReason === 'indentAndBrackets') {
+        // Try to find inner brackets first
+        const text = editor.document.getText(highlighted)
+        let innerStart = -1
+        
+        // Find first opening bracket within current selection
+        for (let i = 0; i < text.length; i++) {
+            if ('{([<'.includes(text[i])) {
+                innerStart = i
+                break
+            }
+        }
+
+        if (innerStart !== -1) {
+            const startPos = editor.document.offsetAt(highlighted.start) + innerStart
+            const innerRange = findSurroundingBrackets(editor, startPos)
+            if (innerRange && highlighted.contains(innerRange) && !innerRange.isEqual(highlighted)) {
+                lastRange = innerRange
+                fixedRange = innerRange
+                decorateForLastRange(editor, context)
+                return
+            }
+        }
+    }
+    
+    if (dimmingReason === 'indent' || dimmingReason === 'indentAndBrackets') {
+        // If no inner brackets found or in indent mode, try indent shrinking
+        const currentIndent = getIndentLevel(editor, editor.document.lineAt(highlighted.start.line))
+        let foundDeeper = false
+        
+        // Look for first deeper indent level
+        for (let i = highlighted.start.line; i <= highlighted.end.line; i++) {
+            const line = editor.document.lineAt(i)
+            if (!line.isEmptyOrWhitespace) {
+                const indent = getIndentLevel(editor, line)
+                if (indent > currentIndent) {
+                    const botLine = findBot(editor, line)
+                    const newRange = new vscode.Range(line.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
+                    lastRange = newRange
+                    fixedRange = newRange
+                    foundDeeper = true
+                    break
+                }
+            }
+        }
+        
+        if (!foundDeeper) {
+            // If no deeper level found, shrink to current line
+            const currentLine = editor.selection.active.line
+            const newRange = new vscode.Range(
+                currentLine, 
+                0, 
+                currentLine, 
+                editor.document.lineAt(currentLine).text.length
+            )
+            if (!highlighted.isEqual(newRange)) {
+                lastRange = newRange
+                fixedRange = newRange
+            }
+        }
+    }
+
+    decorateForLastRange(editor, context)
 }
