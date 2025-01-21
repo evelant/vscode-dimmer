@@ -175,9 +175,6 @@ function dimEditor(editor: vscode.TextEditor, context: vscode.ExtensionContext) 
             let bracketRange = findSurroundingBrackets(editor, selectionIndex)
             if (bracketRange) {
                 lastRange = bracketRange
-                if (dimmingReason !== 'brackets' && lastRange.end.line > lastRange.start.line) {
-                    lastRange = new vscode.Range(lastRange.start.line, 0, lastRange.end.line, lastRange.end.character)
-                } 
             } else if (dimmingReason === 'brackets') {
                 lastRange = null
             }
@@ -193,12 +190,17 @@ function decorateForLastRange(editor: vscode.TextEditor, context: vscode.Extensi
         } else {
             fixedRange = null
         }
-        HLRange[0] = new vscode.Range(0, 0, lastRange.start.line, lastRange.start.character)
-        HLRange[1] = new vscode.Range(lastRange.end.line, lastRange.end.character, editor.document.lineCount, Number.MAX_VALUE)
+
+        let normalRange = lastRange
+        if (dimmingReason !== 'brackets' && normalRange.end.line > normalRange.start.line) {
+            normalRange = new vscode.Range(normalRange.start.line, 0, normalRange.end.line, normalRange.end.character)
+        } 
+        HLRange[0] = new vscode.Range(0, 0, normalRange.start.line, normalRange.start.character)
+        HLRange[1] = new vscode.Range(normalRange.end.line, normalRange.end.character, editor.document.lineCount, Number.MAX_VALUE)
 
         editor.setDecorations(dimDecoration, HLRange)
-        editor.setDecorations(normalDecoration, [lastRange])
-        updateGlobalState([lastRange], editor, context)
+        editor.setDecorations(normalDecoration, [normalRange])
+        updateGlobalState([normalRange], editor, context)
     } else {
         HLRange = []
         fixedRange = null
