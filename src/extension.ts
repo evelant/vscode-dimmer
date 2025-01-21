@@ -293,27 +293,21 @@ function setCurrentDocumentTabSize() {
     TAB_SIZE = tabs
 }
 
-function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
-    let highlighted = fixedRange ?? lastRange
-    if (!highlighted) { return }
-
+function expandedSelection(selection: vscode.Range, editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     if (dimmingReason !== 'indent') {
         // Try bracket expansion first
-        const currentPos = editor.document.offsetAt(highlighted.start)
+        const currentPos = editor.document.offsetAt(selection.start)
         const expandedRange = findSurroundingBrackets(editor, currentPos)
         
-        if (expandedRange && !expandedRange.isEqual(highlighted)) {
-            lastRange = expandedRange
-            fixedRange = expandedRange
-            decorateForLastRange(editor, context)
-            return
+        if (expandedRange && !expandedRange.isEqual(selection)) {
+            return expandedRange
         }
     }
     
     if (dimmingReason !== 'brackets') {
         // If brackets didn't work or we're in indent mode, try indent expansion
-        const currentIndent = getIndentLevel(editor, editor.document.lineAt(highlighted.start.line))
-        let line = editor.document.lineAt(highlighted.start.line)
+        const currentIndent = getIndentLevel(editor, editor.document.lineAt(selection.start.line))
+        let line = editor.document.lineAt(selection.start.line)
         
         // Search upward for lower indent level
         while (line.lineNumber > 0) {
@@ -323,26 +317,43 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
                 if (indent < currentIndent) {
                     const botLine = findBot(editor, line, editor.selection.active)
                     const newRange = new vscode.Range(line.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
-                    if (!highlighted.isEqual(newRange)) {
-                        lastRange = newRange
-                        fixedRange = newRange
-                        break
+                    if (!selection.isEqual(newRange)) {
+                        return newRange
                     }
                 }
             }
         }
     }
+    return null
+}
 
-    decorateForLastRange(editor, context)
+function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
+    if (isItRoot(editor)) { return }
+    let highlighted = fixedRange ?? lastRange
+    if (!highlighted) { return }
+    const expanded = expandedSelection(highlighted, editor, context)
+    if (expanded) {
+        lastRange = expanded
+        fixedRange = expanded
+        decorateForLastRange(editor, context)
+    }
 }
 
 function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
+    if (isItRoot(editor)) { return }
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    
-
-    decorateForLastRange(editor, context)
+    let range = computeRange(editor)
+    while (range.start > highlighted.start) {
+        const newRange = expandedSelection(range, editor, context)
+        if (newRange === highlighted) {
+            lastRange = range
+            fixedRange = range
+            decorateForLastRange(editor, context)
+            return
+        }
+    }
 }
 
 /**
