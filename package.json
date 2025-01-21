@@ -2,7 +2,7 @@
   "name": "code-dimmer",
   "displayName": "Code Dimmer",
   "description": "Highlights the block containing the cursor, dims other text. Forked from VSCode Dimmer Block",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "publisher": "dankinsoid",
   "engines": {
     "vscode": "^1.90.0"
@@ -33,6 +33,10 @@
       {
         "command": "dimmer.ToggleDimmer",
         "title": "Toggle Dimmer"
+      },
+      {
+        "command": "dimmer.FixDimmer",
+        "title": "Fix Dimming"
       }
     ],
     "configuration": {
