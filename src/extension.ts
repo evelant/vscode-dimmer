@@ -383,6 +383,6 @@ function updateStatusBarIcon() {
     }
 }
 
-export function deactivate() {
-    resetAllDecorations();
+export function deactivate(context: vscode.ExtensionContext) {
+    resetAllDecorations(context);
 }
