@@ -16,9 +16,6 @@ let dimDecoration: vscode.TextEditorDecorationType;
 let normalDecoration = vscode.window.createTextEditorDecorationType(<vscode.DecorationRenderOptions>{
     textDecoration: 'none; opacity: 1'
 })
-let highlightedDecoration = vscode.window.createTextEditorDecorationType(<vscode.DecorationRenderOptions>{
-    backgroundColor: 'rgba(255, 165, 0, 0.2)', // Opacity background color (orange with 20% opacity)
-})
 
 let lineTable = new Map() // Line dict
 
@@ -159,7 +156,6 @@ function createDimDecorator() {
 function undimEditor(editor: vscode.TextEditor) {
     if (!dimDecoration) return;
     editor.setDecorations(dimDecoration, [])
-    editor.setDecorations(highlightedDecoration, [])
 }
 
 function dimEditor(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
@@ -293,7 +289,7 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    if (dimmingReason === 'brackets' || dimmingReason === 'indentAndBrackets') {
+    if (dimmingReason !== 'indent') {
         // Try bracket expansion first
         const currentPos = editor.document.offsetAt(highlighted.start)
         const expandedRange = findSurroundingBrackets(editor, currentPos)
@@ -306,7 +302,7 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
         }
     }
     
-    if (dimmingReason === 'indent' || dimmingReason === 'indentAndBrackets') {
+    if (dimmingReason !== 'brackets') {
         // If brackets didn't work or we're in indent mode, try indent expansion
         const currentIndent = getIndentLevel(editor, editor.document.lineAt(highlighted.start.line))
         let line = editor.document.lineAt(highlighted.start.line)
