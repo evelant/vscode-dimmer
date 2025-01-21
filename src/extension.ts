@@ -341,18 +341,19 @@ function expandSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
 
 function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     if (isItRoot(editor)) { return }
-    let highlighted = fixedRange ?? lastRange
+    const highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
     let range = computeRange(editor)
-    while (range.start > highlighted.start) {
+    while (highlighted.contains(range)) {
         const newRange = expandedSelection(range, editor, context)
-        if (newRange === highlighted) {
+        if (newRange.contains(highlighted)) {
             lastRange = range
             fixedRange = range
             decorateForLastRange(editor, context)
             return
         }
+        range = newRange
     }
 }
 
