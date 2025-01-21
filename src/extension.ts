@@ -411,6 +411,7 @@ function updateStatusBarIcon() {
 export function deactivate(context: vscode.ExtensionContext) {
     resetAllDecorations(context)
 }
+
 function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionContext) {
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
