@@ -413,67 +413,50 @@ function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    if (dimmingReason === 'brackets' || dimmingReason === 'indentAndBrackets') {
-        // Try to find inner brackets first
-        const text = editor.document.getText(highlighted)
-        let innerStart = -1
+    const cursorLine = editor.selection.active.line
+    
+    if (dimmingReason !== 'indent') {
+        // Try to find closest bracket pair around cursor
+        const cursorOffset = editor.document.offsetAt(editor.selection.active)
+        const bracketRange = findSurroundingBrackets(editor, cursorOffset)
         
-        // Find first opening bracket within current selection
-        for (let i = 0; i < text.length; i++) {
-            if ('{([<'.includes(text[i])) {
-                innerStart = i
-                break
-            }
+        if (bracketRange && highlighted.contains(bracketRange) && !bracketRange.isEqual(highlighted)) {
+            lastRange = bracketRange
+            fixedRange = bracketRange
+            decorateForLastRange(editor, context)
+            return
         }
-
-        if (innerStart !== -1) {
-            const startPos = editor.document.offsetAt(highlighted.start) + innerStart
-            const innerRange = findSurroundingBrackets(editor, startPos)
-            if (innerRange && highlighted.contains(innerRange) && !innerRange.isEqual(highlighted)) {
-                lastRange = innerRange
-                fixedRange = innerRange
+    }
+    
+    if (dimmingReason !== 'brackets') {
+        // If brackets didn't work or we're in indent mode
+        const line = editor.document.lineAt(cursorLine)
+        if (!line.isEmptyOrWhitespace) {
+            const currentIndent = getIndentLevel(editor, line)
+            const topLine = findTop(editor)
+            const botLine = findBot(editor, topLine)
+            const newRange = new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
+            
+            if (highlighted.contains(newRange) && !newRange.isEqual(highlighted)) {
+                lastRange = newRange
+                fixedRange = newRange
                 decorateForLastRange(editor, context)
                 return
             }
         }
     }
-    
-    if (dimmingReason === 'indent' || dimmingReason === 'indentAndBrackets') {
-        // If no inner brackets found or in indent mode, try indent shrinking
-        const currentIndent = getIndentLevel(editor, editor.document.lineAt(highlighted.start.line))
-        let foundDeeper = false
-        
-        // Look for first deeper indent level
-        for (let i = highlighted.start.line; i <= highlighted.end.line; i++) {
-            const line = editor.document.lineAt(i)
-            if (!line.isEmptyOrWhitespace) {
-                const indent = getIndentLevel(editor, line)
-                if (indent > currentIndent) {
-                    const botLine = findBot(editor, line)
-                    const newRange = new vscode.Range(line.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
-                    lastRange = newRange
-                    fixedRange = newRange
-                    foundDeeper = true
-                    break
-                }
-            }
-        }
-        
-        if (!foundDeeper) {
-            // If no deeper level found, shrink to current line
-            const currentLine = editor.selection.active.line
-            const newRange = new vscode.Range(
-                currentLine, 
-                0, 
-                currentLine, 
-                editor.document.lineAt(currentLine).text.length
-            )
-            if (!highlighted.isEqual(newRange)) {
-                lastRange = newRange
-                fixedRange = newRange
-            }
-        }
-    }
 
+    // If no inner context found, shrink to current line
+    const newRange = new vscode.Range(
+        cursorLine, 
+        0, 
+        cursorLine, 
+        editor.document.lineAt(cursorLine).text.length
+    )
+    if (!highlighted.isEqual(newRange)) {
+        lastRange = newRange
+        fixedRange = newRange
+    }
+    
     decorateForLastRange(editor, context)
 }
