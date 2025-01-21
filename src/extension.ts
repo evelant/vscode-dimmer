@@ -415,50 +415,80 @@ function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    const cursorLine = editor.selection.active.line
-    
+    const cursorPos = editor.selection.active
+    const cursorOffset = editor.document.offsetAt(cursorPos)
+
+    // Find all possible ranges within the current highlight
+    let possibleRanges: vscode.Range[] = []
+
     if (dimmingReason !== 'indent') {
-        // Try to find closest bracket pair around cursor
-        const cursorOffset = editor.document.offsetAt(editor.selection.active)
-        const bracketRange = findSurroundingBrackets(editor, cursorOffset)
+        // Find all bracket pairs within the current range
+        const text = editor.document.getText(highlighted)
+        const startOffset = editor.document.offsetAt(highlighted.start)
+        const brackets = ['()', '{}', '[]', '<>']
         
-        if (bracketRange && highlighted.contains(bracketRange) && !bracketRange.isEqual(highlighted)) {
-            lastRange = bracketRange
-            fixedRange = bracketRange
-            decorateForLastRange(editor, context)
-            return
-        }
-    }
-    
-    if (dimmingReason !== 'brackets') {
-        // If brackets didn't work or we're in indent mode
-        const line = editor.document.lineAt(cursorLine)
-        if (!line.isEmptyOrWhitespace) {
-            const currentIndent = getIndentLevel(editor, line)
-            const topLine = findTop(editor)
-            const botLine = findBot(editor, topLine)
-            const newRange = new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
-            
-            if (highlighted.contains(newRange) && !newRange.isEqual(highlighted)) {
-                lastRange = newRange
-                fixedRange = newRange
-                decorateForLastRange(editor, context)
-                return
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i]
+            for (const bracketPair of brackets) {
+                if (char === bracketPair[0]) {
+                    const innerRange = findSurroundingBrackets(editor, startOffset + i)
+                    if (innerRange && highlighted.contains(innerRange) && !innerRange.isEqual(highlighted)) {
+                        possibleRanges.push(innerRange)
+                    }
+                }
             }
         }
     }
 
-    // If no inner context found, shrink to current line
-    const newRange = new vscode.Range(
-        cursorLine, 
-        0, 
-        cursorLine, 
-        editor.document.lineAt(cursorLine).text.length
-    )
-    if (!highlighted.isEqual(newRange)) {
-        lastRange = newRange
-        fixedRange = newRange
+    if (dimmingReason !== 'brackets') {
+        // Find all indent-based ranges within the current range
+        for (let lineNum = highlighted.start.line; lineNum <= highlighted.end.line; lineNum++) {
+            const line = editor.document.lineAt(lineNum)
+            if (!line.isEmptyOrWhitespace) {
+                const currentIndent = getIndentLevel(editor, line)
+                const topLine = findTop(editor)
+                const botLine = findBot(editor, topLine)
+                const indentRange = new vscode.Range(topLine.lineNumber, 0, botLine.lineNumber, Number.MAX_VALUE)
+                
+                if (highlighted.contains(indentRange) && !indentRange.isEqual(highlighted)) {
+                    possibleRanges.push(indentRange)
+                }
+            }
+        }
     }
-    
+
+    // Sort ranges by size (smallest to largest) and filter to only those containing cursor
+    possibleRanges = possibleRanges
+        .filter(range => range.contains(cursorPos))
+        .sort((a, b) => {
+            const aSize = editor.document.offsetAt(a.end) - editor.document.offsetAt(a.start)
+            const bSize = editor.document.offsetAt(b.end) - editor.document.offsetAt(b.start)
+            return aSize - bSize
+        })
+
+    // Find the next smaller range from current
+    const currentSize = editor.document.offsetAt(highlighted.end) - editor.document.offsetAt(highlighted.start)
+    const nextRange = possibleRanges.find(range => {
+        const rangeSize = editor.document.offsetAt(range.end) - editor.document.offsetAt(range.start)
+        return rangeSize < currentSize
+    })
+
+    if (nextRange) {
+        lastRange = nextRange
+        fixedRange = nextRange
+    } else {
+        // If no smaller range found, shrink to current line
+        const newRange = new vscode.Range(
+            cursorPos.line,
+            0,
+            cursorPos.line,
+            editor.document.lineAt(cursorPos.line).text.length
+        )
+        if (!highlighted.isEqual(newRange)) {
+            lastRange = newRange
+            fixedRange = newRange
+        }
+    }
+
     decorateForLastRange(editor, context)
 }
