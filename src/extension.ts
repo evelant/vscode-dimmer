@@ -344,15 +344,31 @@ function shrinkSelection(editor: vscode.TextEditor, context: vscode.ExtensionCon
     let highlighted = fixedRange ?? lastRange
     if (!highlighted) { return }
 
-    let range = computeRange(editor)
-    while (range.start > highlighted.start) {
-        const newRange = expandedSelection(range, editor, context)
-        if (newRange === highlighted) {
-            lastRange = range
-            fixedRange = range
+    // Get current cursor position range
+    let currentRange = computeRange(editor)
+    if (!currentRange) { return }
+
+    // If current range is smaller than highlighted and within it, use that
+    if (currentRange.start.isAfterOrEqual(highlighted.start) && 
+        currentRange.end.isBeforeOrEqual(highlighted.end) &&
+        !currentRange.isEqual(highlighted)) {
+        lastRange = currentRange
+        fixedRange = currentRange
+        decorateForLastRange(editor, context)
+        return
+    }
+
+    // Otherwise try to find a range between current and highlighted
+    let possibleRange = expandedSelection(currentRange, editor, context)
+    while (possibleRange && !possibleRange.isEqual(highlighted)) {
+        if (possibleRange.start.isAfterOrEqual(highlighted.start) && 
+            possibleRange.end.isBeforeOrEqual(highlighted.end)) {
+            lastRange = possibleRange
+            fixedRange = possibleRange
             decorateForLastRange(editor, context)
             return
         }
+        possibleRange = expandedSelection(possibleRange, editor, context)
     }
 }
 
