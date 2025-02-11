@@ -1,19 +1,19 @@
 {
-  "name": "vscode-dimmer-block",
-  "displayName": "VSCode Dimmer Block",
-  "description": "Highlights the block containing the cursor, dims other text.",
-  "version": "2.2.0",
-  "publisher": "imagio",
+  "name": "code-dimmer",
+  "displayName": "Code Dimmer",
+  "description": "Highlights the block containing the cursor, dims other text. Forked from VSCode Dimmer Block",
+  "version": "3.0.0",
+  "publisher": "dankinsoid",
   "engines": {
-    "vscode": "^1.6.0"
+    "vscode": "^1.90.0"
   },
   "icon": "images/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AndrewMorsillo/vscode-dimmer.git"
+    "url": "https://github.com/dankinsoid/vscode-dimmer.git"
   },
   "bugs": {
-    "url": "https://github.com/AndrewMorsillo/vscode-dimmer/issues"
+    "url": "https://github.com/dankinsoid/vscode-dimmer/issues"
   },
   "author": {
     "name": "original: Cody Hoover",
@@ -24,7 +24,8 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished",
+    "workspaceContains:**/*"
   ],
   "main": "./out/src/extension",
   "contributes": {
@@ -32,6 +33,43 @@
       {
         "command": "dimmer.ToggleDimmer",
         "title": "Toggle Dimmer"
+      },
+      {
+        "command": "dimmer.FixDimmer",
+        "title": "Fix/Unfix Dimming"
+      },
+      {
+        "command": "dimmer.ExpandDimmer",
+        "title": "Expand Dimming Selection"
+      },
+      {
+        "command": "dimmer.SrinkDimmer",
+        "title": "Shrink Dimming Selection"
+      },
+      {
+        "command": "dimmer.ClearDimming",
+        "title": "Clear Dimming"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "dimmer.FixDimmer",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f"
+      },
+      {
+        "command": "dimmer.ExpandDimmer",
+        "key": "ctrl+shift+]",
+        "mac": "cmd+shift+]"
+      },
+      {
+        "command": "dimmer.SrinkDimmer",
+        "key": "ctrl+shift+[", 
+        "mac": "cmd+shift+["
+      },
+      {
+        "command": "dimmer.ClearDimming",
+        "key": "escape"
       }
     ],
     "configuration": {
@@ -42,7 +80,7 @@
           "description": "When set to true, the extension will dim non-selected text."
         },
         "dimmer.toggleDimmerCommandScope": {
-          "defualt": "user",
+          "default": "user",
           "type": "string",
           "enum": [
             "user",
@@ -59,20 +97,32 @@
           "default": 0,
           "type": "number",
           "description": "Delay in milliseconds for dimming the non-selected text to reduce number of API calls in the event of rapid selection changes. Defaults to 0, but set higher if it feels like it is causing problems."
+        },
+        "dimmer.dimmingReason": {
+          "default": "indentAndBrackets",
+          "type": "string",
+          "enum": [
+            "indentAndBrackets",
+            "indent",
+            "brackets"
+          ],
+          "description": "Decides what will trigger the dimming of non-selected text."
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install"
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "lint": "eslint \"src/**/*.ts\"",
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "typescript": "^2.0.3",
-    "vscode": "^1.0.3",
-    "mocha": "^2.3.3",
-    "@types/node": "^6.0.40",
-    "@types/mocha": "^2.2.32"
+    "@types/node": "^18",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.2",
+    "@typescript-eslint/eslint-plugin": "^7.14.0",
+    "@typescript-eslint/parser": "^7.14.0",
+    "eslint": "^8.26.0"
   }
 }

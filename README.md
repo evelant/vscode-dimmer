@@ -1,4 +1,4 @@
-# vscode-dimmer-block
+# code-dimmer
 
 ## Features
 
@@ -8,17 +8,17 @@ Set a keybinding for `dimmer.ToggleDimmer`, search `Toggle Dimmer` in the comman
 
 ![Context](images/context.gif)
 
-Original code by hoovercj, block capability by jmasramon, uploaded by andrewmorsillo
+Original code by hoovercj, block capability by jmasramon, brackets dimming by dankinsoid.
 
 ## Configuration
 
-```
+```json
 "dimmer.enabled": {
     "default": false,
     "description": "When set to true, the extension will dim non-selected text."
 },
 "dimmer.toggleDimmerCommandScope": {
-    "defualt": "user",
+    "default": "user",
     "description": "Decides whether the `ToggleDimmer` command will affect the user (global) or workspace (local) settings."
 },
 "dimmer.opacity": {
@@ -29,7 +29,14 @@ Original code by hoovercj, block capability by jmasramon, uploaded by andrewmors
     "default": 0,
     "description": "Delay in milliseconds for dimming the non-selected text to reduce number of API calls in the event of rapid selection changes. Defaults to 0, but set higher if it feels like it is causing problems."
 }
+"dimmer.dimmingReason": "brackets"
 ```
+
+### 2.3.0
+
+- Forked from [evelant/vscode-dimmer](https://github.com/evelant/vscode-dimmer) since the original repo is no longer maintained.
+- Added support for dimming text inside brackets.
+- Added `dimmer.dimmingReason` setting to allow for different dimming reasons.
 
 ### 2.2.0
 
